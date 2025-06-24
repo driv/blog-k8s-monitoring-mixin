@@ -1,0 +1,60 @@
+releases:
+- name: ingress
+  chart: ./ingress
+- name: k8s-monitoring
+  namespace: monitoring
+  chart: grafana/k8s-monitoring
+  createNamespace: true
+  values:
+  - cluster:
+      name: my-cluster
+    destinations:
+    - name: local-mimir
+      type: prometheus
+      url: http://mimir-nginx.monitoring.svc.cluster.local.:80/api/v1/push
+    alloy-metrics:
+      enabled: true
+    clusterMetrics:
+      enabled: true
+      controlPlane:
+        enabled: true
+# TODO decide whether to keep kube-state-metrics
+- name: kube-state-metrics
+  namespace: monitoring
+  chart: prometheus-community/kube-state-metrics
+  createNamespace: true
+  installed: false
+- name: mimir
+  namespace: monitoring
+  chart: grafana/mimir-distributed
+  createNamespace: true
+  values:
+  - mimir:
+      structuredConfig:
+        ingester:
+          ring:
+            replication_factor: 1
+    ingester:
+      replicas: 1
+      zoneAwareReplication:
+        enabled: false
+    store_gateway:
+      replicas: 1
+      zoneAwareReplication:
+        enabled: false
+    federationFrontend:
+      replicas: 1
+    minio:
+      replicas: 1
+    querier:
+      replicas: 1
+    query_scheduler:
+      replicas: 1
+- name: grafana
+  namespace: monitoring
+  chart: grafana/grafana
+  createNamespace: true
+  values:
+  # TODO bring values from file
+  - grafana-values.yaml
+  

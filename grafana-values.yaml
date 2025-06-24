@@ -1,0 +1,30 @@
+ingress:
+  enabled: true
+  hosts:
+    - grafana.local.amazinglyabstract.it
+datasources:
+  datasources.yaml: 
+    apiVersion: 1
+    datasources:
+    - name: Mimir
+      type: prometheus
+      url: http://mimir-nginx.monitoring-mimir.svc.cluster.local.:80/prometheus
+    deleteDatasources: []
+
+sidecar:
+  dashboards:
+    enabled: true
+    labelValue: "true"
+
+admin:
+  existingSecret: grafana
+
+extraObjects:
+- |
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: grafana
+  stringData:
+    admin-user: admin
+    admin-password: admin
