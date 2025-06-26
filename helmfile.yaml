@@ -1,6 +1,7 @@
 releases:
 - name: ingress
   chart: ./ingress
+  installed: false
 - name: k8s-monitoring
   namespace: monitoring
   chart: grafana/k8s-monitoring
@@ -18,12 +19,6 @@ releases:
       enabled: true
       controlPlane:
         enabled: true
-# TODO decide whether to keep kube-state-metrics
-- name: kube-state-metrics
-  namespace: monitoring
-  chart: prometheus-community/kube-state-metrics
-  createNamespace: true
-  installed: false
 - name: mimir
   namespace: monitoring
   chart: grafana/mimir-distributed
@@ -55,6 +50,5 @@ releases:
   chart: grafana/grafana
   createNamespace: true
   values:
-  # TODO bring values from file
   - grafana-values.yaml
   
