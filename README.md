@@ -8,8 +8,17 @@
 - [Helm](https://helm.sh/docs/intro/install/) installed
 - [docker](https://docs.docker.com/get-docker/) installed
 - [Helmfile](https://github.com/roboll/helmfile#installation) installed
+- [Helm Diff Plugin](https://github.com/databus23/helm-diff#installation) installed
+- [mimirtool](https://grafana.com/docs/mimir/latest/manage/tools/mimirtool/#installation) installed
 
 ## Installation
+
+```bash
+helm plugin install https://github.com/databus23/helm-diff
+# Install mimirtool
+sudo curl -fL https://github.com/grafana/mimir/releases/latest/download/mimirtool-linux-amd64 -o /usr/local/bin/mimirtool
+sudo chmod +x /usr/local/bin/mimirtool
+```
 
 Start a Kind cluster
 
@@ -20,6 +29,7 @@ kind create cluster --name k8s-monitoring
 ```bash
 # Skip diff since we don't have the CRDs installed yet
 helmfile apply --skip-diff-on-install
+helm repo update
 ```
 
 ## Accessing Grafana
@@ -38,8 +48,10 @@ grafana username and password are `admin` `admin`
 cd mixins
 mkdir -p generated/dashboards
 
-jb init
+# Install Jsonnet dependencies from jsonnetfile.json (and lock their versions in jsonnetfile.lock.json)
+jb install
 
+# Generate alerts, rules, and dashboards
 jsonnet -J vendor -S -e 'std.manifestYamlDoc((import "mixin.libsonnet").prometheusAlerts)' > generated/alerts.yml
 jsonnet -J vendor -S -e 'std.manifestYamlDoc((import "mixin.libsonnet").prometheusRules)' > generated/rules.yml
 
@@ -67,18 +79,13 @@ Generate the ConfigMaps for the dashboards from the `mixins` directory:
 ```bash
 mkdir generated/dashboards-cm
 for f in generated/dashboards/*.json; do
-name=$(basename "$f" .json);
-kubectl create configmap grafana-dashboard-$name     --from-file="$f"     -n monitoring     --dry-run=client -o yaml > generated/dashboards-cm/$name.yaml;
-done
-```
-
-We need to add a label to the ConfigMaps so Grafana sidecar can recognize them as dashboards:
-
-```bash
-for file in generated/dashboards-cm/*.yaml; do
-yq eval "
-    .metadata.labels.grafana_dashboard = \"true\"
-" -i "$file";
+  name=$(basename "$f" .json)
+  kubectl create configmap grafana-dashboard-$name \
+    --from-file="$f" \
+    -n monitoring \
+    --dry-run=client -o yaml \
+    | kubectl label --local -f - -o yaml grafana_dashboard="true" \
+    > generated/dashboards-cm/$name.yaml
 done
 ```
 
@@ -102,13 +109,7 @@ kubectl -n kube-system delete pod -l tier=control-plane
 ```
 
 ```bash
-kubectl edit -n kube-system configmaps kube-proxy
-```
-
-Update the `metricsBindAddress` to allow metrics to be exposed on all interfaces:
-
-```yaml
-metricsBindAddress: "0.0.0.0:10249"
+kubectl get -n kube-system configmaps kube-proxy -o yaml | sed 's/metricsBindAddress: ""/metricsBindAddress: "0.0.0.0:10249"/' | kubectl apply -f -
 ```
 
 ```bash

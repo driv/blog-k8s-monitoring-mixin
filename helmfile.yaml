@@ -15,7 +15,7 @@ releases:
     destinations:
     - name: local-mimir
       type: prometheus
-      url: http://mimir-nginx.monitoring.svc.cluster.local.:80/api/v1/push
+      url: http://mimir-gateway.monitoring.svc.cluster.local.:80/api/v1/push
     alloy-metrics:
       enabled: true
     clusterMetrics:
